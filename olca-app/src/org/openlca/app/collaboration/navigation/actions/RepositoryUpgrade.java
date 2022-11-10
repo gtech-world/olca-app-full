@@ -37,22 +37,21 @@ public class RepositoryUpgrade {
 	}
 
 	public static void on(IDatabase database) {
-		// TODO currently disabled
-		// try {
-		// var upgrade = new RepositoryUpgrade(database);
-		// var config = upgrade.init();
-		// if (config == null)
-		// return;
-		// if (!Question.ask("Update repository connection",
-		// "You were previously connected to a Collaboration Server version 1.
-		// openLCA 2 requires Collaboration Server version 2. Do you want to
-		// update your server connection? (This requires that the server you are
-		// connected to is already updated)"))
-		// return;
-		// upgrade.run(config);
-		// } catch (Throwable e) {
-		// log.warn("Could not upgrade repository connection", e);
-		// }
+		try {
+			var upgrade = new RepositoryUpgrade(database);
+			var config = upgrade.init();
+			if (config == null)
+				return;
+			if (!Question.ask("Update repository connection", """
+					You were previously connected to a Collaboration Server version 1.
+					openLCA 2 requires Collaboration Server version 2. Do you want to
+					update your server connection? (This requires that the server you are
+					connected to is already updated)"""))
+				return;
+			upgrade.run(config);
+		} catch (Throwable e) {
+			log.warn("Could not upgrade repository connection", e);
+		}
 	}
 
 	void run(Config config) {
@@ -130,10 +129,18 @@ public class RepositoryUpgrade {
 			var commits = Actions.run(credentials, GitFetch.to(repo.git));
 			if (commits == null || commits.isEmpty())
 				return;
+			var libraryResolver = WorkspaceLibraryResolver.forRemote();
+			if (libraryResolver == null)
+				return;
+			var conflicts = ConflictResolutionMap.forRemote();
+			if (conflicts == null)
+				return;
 			Actions.run(GitMerge.from(repo.git)
 					.into(database)
+					.update(repo.workspaceIds)
 					.as(AuthenticationDialog.promptUser(repo))
-					.resolveConflictsWith(null));
+					.resolveLibrariesWith(libraryResolver)
+					.resolveConflictsWith(conflicts.resolutions()));
 		} catch (GitAPIException | InvocationTargetException | InterruptedException | IOException e) {
 			log.warn("Error pulling from " + repo.client.serverUrl + "/" + repo.client.repositoryId, e);
 		}
