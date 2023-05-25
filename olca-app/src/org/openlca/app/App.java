@@ -18,6 +18,7 @@ import org.openlca.app.collaboration.preferences.CollaborationPreference;
 import org.openlca.app.db.Repository;
 import org.openlca.app.editors.Editors;
 import org.openlca.app.editors.ModelEditorInput;
+import org.openlca.app.licence.Authentication;
 import org.openlca.app.rcp.RcpActivator;
 import org.openlca.app.rcp.Workspace;
 import org.openlca.app.util.ErrorReporter;
@@ -124,9 +125,14 @@ public class App {
 			return;
 		}
 		log.trace("open editor for {} ", d);
+		log.debug("open editor for {} ", d);
 		String editorId = "editors." + d.type.getModelClass()
 				.getSimpleName().toLowerCase();
 		var input = new ModelEditorInput(d);
+		if (d.isFromLibrary() && !Authentication.login(d.library)) {
+			log.error("failed to authenticate user of the library.");
+			return;
+		}
 		Editors.open(input, editorId);
 	}
 

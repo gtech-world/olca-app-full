@@ -1,11 +1,14 @@
 package org.openlca.app.editors.systems;
 
 import org.openlca.app.App;
+import org.openlca.app.db.Database;
 import org.openlca.app.db.DatabaseDir;
+import org.openlca.app.licence.Authentication;
 import org.openlca.app.util.Question;
 import org.openlca.app.wizards.calculation.CalculationWizard;
 import org.openlca.core.model.ProductSystem;
 import org.openlca.util.ProductSystems;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
@@ -14,6 +17,7 @@ import java.nio.file.Files;
 class CalculationDispatch {
 
 	private final ProductSystem system;
+	private final Logger log = LoggerFactory.getLogger(getClass());
 
 	private CalculationDispatch(ProductSystem system) {
 		this.system = system;
@@ -26,6 +30,16 @@ class CalculationDispatch {
 	}
 
 	private void call() {
+		var libraries = Database.get().getLibraries();
+		if (!libraries.isEmpty()) {
+			for (var library : libraries) {
+				if (!Authentication.login(library)) {
+					log.error("failed to authenticate user of the library.");
+					return;
+				}
+			}
+		}
+
 		if (shouldCheckSystem()) {
 			LoggerFactory.getLogger(getClass())
 					.info("check if system {} is linked", system);
